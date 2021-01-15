@@ -2,7 +2,8 @@
   <div>
     <HomePage 
     v-if="PageName == 'HomePage'" 
-    @changePage="changePage"> 
+    @changePage="changePage"
+    :params="params" :renderParams="renderParams" @onSuccess="onSuccess" :onFailure="onFailure"> 
     </HomePage>
 
     <RegisterPage 
@@ -47,7 +48,10 @@ export default {
       Categories: ['Backlog', 'Todo', 'Doing', 'Done'],
       MainPage: 'ListPage',
       Datas: '',
-      data: ''
+      data: '',
+      params: {
+        client_id: "535236340893-os9slvac221sa575pimv5gl7qf73n35u.apps.googleusercontent.com"
+      }
     }
   },
   components: {
@@ -57,18 +61,39 @@ export default {
     MainPage
   },
   methods: {
+    onSuccess(googleUser) {
+      let token_google = googleUser.getAuthResponse().id_token
+      axios({
+        method: 'POST',
+        url: 'http://localhost:3000/google',
+        data: {
+          token_google
+        }
+      })
+        .then(({data}) => {
+          localStorage.setItem('access_token', data.access_token)
+          this.PageName = "MainPage"
+        })
+        .catch(({err}) => {
+          console.log(err)
+        })
+    },
     changePage(page) {
       this.PageName = page
     },
     changeMainPage(page) {
       if(page.page == "EditPage") {
-        this.MainPage = page.page
+        // this.MainPage = page.page
         this.getTask(page.id)
       } else {
         this.MainPage = page
       }
     },
     logout() {
+      // var auth2 = gapi.auth2.getAuthInstance();
+      // auth2.signOut().then(function () {
+      //   console.log('User signed out.');
+      // });
       localStorage.clear()
       this.PageName = 'HomePage'
     },
@@ -85,6 +110,7 @@ export default {
           this.PageName = 'LoginPage'
         })
         .catch(({err}) => {
+          this.$swal('Fail to register', '', 'error')
           console.log(err)
         })
     },
@@ -101,8 +127,8 @@ export default {
           localStorage.setItem('access_token', data.access_token)
           this.PageName = "MainPage"
         })
-        .catch(({err}) => {
-          console.log(err)
+        .catch((err) => {
+          this.$swal('Email/Password Wrong', '', 'error')
         })
     },
     getTasks() {
@@ -135,6 +161,7 @@ export default {
         .then(({ data }) => {
           this.MainPage = 'ListPage'
           this.getTasks()
+          this.$swal('Created', 'Task Added!', 'success')
         })
         .catch(({err}) => {
           console.log(err)
@@ -155,25 +182,42 @@ export default {
         .then(({ data }) => {
           this.MainPage = 'ListPage'
           this.getTasks()
+          this.$swal('Saved', 'Task Updated!', 'success')
         })
         .catch(({err}) => {
-          console.log(err)
+          console.log(err, 'saveEdit')
         })
     },
     deleteTask(id) {
-        axios({
+      this.$swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          axios({
           url: `http://localhost:3000/tasks/${id}`,
           method: 'DELETE',
           headers: {
               access_token: localStorage.access_token
           }
         })
-        .then(({ data }) => {
-          this.getTasks()
-        })
-        .catch(({err}) => {
-          console.log(err)
-        })
+          .then(({ data }) => {
+            this.$swal.fire(
+            'Deleted!', 'Your task has been deleted.', 'success')
+            this.getTasks()
+          })
+          .catch(({err}) => {
+            this.$swal(`Unauthorize`, '', 'error')
+          })
+          
+        }
+      })
+        
     },
     getTask(id) {
       axios({
@@ -185,9 +229,10 @@ export default {
       })
         .then(({ data }) => {
           this.data = data
+          this.MainPage = "EditPage"
         })
         .catch(({err}) => {
-          console.log(err)
+          this.$swal(`Unauthorize`, '', 'error')
         })
     }
   },
@@ -196,6 +241,9 @@ export default {
       this.PageName = "HomePage"
     } else {
       this.PageName = "MainPage"
+      this.getTasks()
+    }
+    if(this.PageName == "MainPage"){
       this.getTasks()
     }
   }

@@ -4,7 +4,6 @@
             <h1> Edit Task </h1>
         </div>
         <div id="container" class="container pt-3 my-3 border">
-            {{data}}
             <form @submit.prevent="editTask">
                 <div class="form-group">
                     <label for="title">Title:</label>
